@@ -1,0 +1,82 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, roc_curve, auc
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+
+# Fetch the dataset from the URL
+data = pd.read_csv('/content/heart_attack_prediction_dataset.csv.csv')
+
+# Assuming your target variable is in a column named 'Heart Attack Risk'
+X = data.iloc[:, :-1]  # Include all columns except the last one
+y = data['Heart Attack Risk'].values
+
+# Identify and exclude non-numeric columns (e.g., strings) for scaling
+non_numeric_columns = X.select_dtypes(include='object').columns
+X = X.drop(columns=non_numeric_columns)
+
+# Split the dataset into a training set and a test set
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Standardize features by removing the mean and scaling to unit variance
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Create a Naive Bayes classifier
+nb_clf = GaussianNB()
+nb_clf.fit(X_train, y_train)
+y_pred_prob_nb = nb_clf.predict_proba(X_test)[:, 1]
+fpr_nb, tpr_nb, _ = roc_curve(y_test, y_pred_prob_nb)
+roc_auc_nb = auc(fpr_nb, tpr_nb)
+accuracy_nb = accuracy_score(y_test, nb_clf.predict(X_test))
+print(f"AUC (Naive Bayes): {roc_auc_nb:.2f}")
+print(f"Accuracy (Naive Bayes): {accuracy_nb:.2%}")
+
+# Create and train the weighted KNN classifier
+k = 3  # Number of neighbors
+weights = 'distance'  # Use inverse of distances as weights
+weighted_knn_classifier = KNeighborsClassifier(n_neighbors=k, weights=weights)
+weighted_knn_classifier.fit(X_train, y_train)
+y_pred_prob_weighted = weighted_knn_classifier.predict_proba(X_test)[:, 1]
+fpr_weighted, tpr_weighted, _ = roc_curve(y_test, y_pred_prob_weighted)
+roc_auc_weighted = auc(fpr_weighted, tpr_weighted)
+accuracy_weighted = accuracy_score(y_test, weighted_knn_classifier.predict(X_test))
+print(f"AUC (Weighted KNN): {roc_auc_weighted:.2f}")
+print(f"Accuracy (Weighted KNN): {accuracy_weighted:.2%}")
+
+# Create and train the KNN classifier
+knn_classifier = KNeighborsClassifier(n_neighbors=k)
+knn_classifier.fit(X_train, y_train)
+y_pred_prob_knn = knn_classifier.predict_proba(X_test)[:, 1]
+fpr_knn, tpr_knn, _ = roc_curve(y_test, y_pred_prob_knn)
+roc_auc_knn = auc(fpr_knn, tpr_knn)
+accuracy_knn = accuracy_score(y_test, knn_classifier.predict(X_test))
+print(f"AUC (KNN): {roc_auc_knn:.2f}")
+print(f"Accuracy (KNN): {accuracy_knn:.2%}")
+
+# Create a logistic regression model
+logistic_model = LogisticRegression()
+logistic_model.fit(X_train, y_train)
+y_pred_prob_logistic = logistic_model.predict_proba(X_test)[:, 1]
+fpr_logistic, tpr_logistic, _ = roc_curve(y_test, y_pred_prob_logistic)
+roc_auc_logistic = auc(fpr_logistic, tpr_logistic)
+accuracy_logistic = accuracy_score(y_test, logistic_model.predict(X_test))
+print(f"AUC (Logistic Regression): {roc_auc_logistic:.2f}")
+print(f"Accuracy (Logistic Regression): {accuracy_logistic:.2%}")
+
+# Plot ROC curve for all four algorithms
+plt.figure(figsize=(10, 8))
+plt.plot(fpr_nb, tpr_nb, color='blue', lw=2, label=f'AUC (Naive Bayes) = {roc_auc_nb:.2f}')
+plt.plot(fpr_weighted, tpr_weighted, color='green', lw=2, label=f'AUC (Weighted KNN) = {roc_auc_weighted:.2f}')
+plt.plot(fpr_knn, tpr_knn, color='red', lw=2, label=f'AUC (KNN) = {roc_auc_knn:.2f}')
+plt.plot(fpr_logistic, tpr_logistic, color='purple', lw=2, label=f'AUC (Logistic Regression) = {roc_auc_logistic:.2f}')
+plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic (ROC) Curve')
+plt.legend(loc='lower right')
+plt.show()
