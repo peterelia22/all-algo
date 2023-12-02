@@ -1,0 +1,78 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import GaussianNB
+from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, auc
+from sklearn.preprocessing import StandardScaler
+
+# Load your dataset from a CSV file
+data = pd.read_csv('/content/heart_attack_prediction_dataset.csv.csv')
+
+# Assuming your target variable is in a column named 'Heart Attack Risk'
+X = data.iloc[:, :-1]  # Include all columns except the last one
+y = data['Heart Attack Risk'].values
+
+# Identify and exclude non-numeric columns (e.g., strings) for scaling
+non_numeric_columns = X.select_dtypes(include='object').columns
+X = X.drop(columns=non_numeric_columns)
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Standardize features by removing the mean and scaling to unit variance
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Create a Naive Bayes classifier
+clf_nb = GaussianNB()
+
+# Train the classifier on the training data
+clf_nb.fit(X_train, y_train)
+
+# Predict probabilities for the positive class
+y_scores_nb = clf_nb.predict_proba(X_test)[:, 1]
+# Print actual probabilities and binary predictions for the first 5 instances
+for i in range(5):
+    print(f"Instance {i + 1}: Probability={y_pred_prob[i]:.2f}, Prediction={y_pred[i]}")
+# Calculate ROC curve
+fpr_nb, tpr_nb, thresholds_nb = roc_curve(y_test, y_scores_nb)
+roc_auc_nb = auc(fpr_nb, tpr_nb)
+
+# Determine the optimal Cutoff Threshold for Naive Bayes
+optimal_idx_nb = np.argmax(tpr_nb - fpr_nb)
+optimal_threshold_nb = thresholds_nb[optimal_idx_nb]
+
+# Print Optimal Cutoff Threshold for Naive Bayes
+print("Optimal Cutoff Threshold for Naive Bayes:", optimal_threshold_nb)
+
+# Calculate accuracy for Naive Bayes
+y_pred_nb = clf_nb.predict(X_test)
+accuracy_nb = accuracy_score(y_test, y_pred_nb)
+print("Accuracy for Naive Bayes:", accuracy_nb * 100)
+# Print AUC for Naive Bayes
+print("AUC for Naive Bayes:", roc_auc_nb)
+# Plot ROC curve
+plt.figure(figsize=(8, 6))
+plt.plot(fpr_nb, tpr_nb, color='darkorange', lw=2, label=f'AUC = {roc_auc_nb:.2f}')
+plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+plt.scatter(fpr_nb[optimal_idx_nb], tpr_nb[optimal_idx_nb], marker='o', color='red', label=f'Optimal Threshold = {optimal_threshold_nb:.2f}')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic (ROC) Curve for Naive Bayes')
+plt.legend(loc='lower right')
+plt.show()
+
+
+
+# Plotting the confusion matrix
+conf_matrix_nb = confusion_matrix(y_test, y_pred_nb)
+plt.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix_nb, annot=True, fmt='d', cmap='Blues', xticklabels=['0', '1'],
+            yticklabels=['0', '1'])
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.title('Confusion Matrix for Naive Bayes')
+plt.show()
