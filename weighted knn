@@ -1,0 +1,95 @@
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, auc, roc_auc_score
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load your dataset from a CSV file
+data = pd.read_csv('/content/heart_attack_prediction_dataset.csv.csv')
+
+# Assuming your target variable is in a column named 'Heart Attack Risk'
+X = data.iloc[:, :-1]  # Include all columns except the last one
+y = data['Heart Attack Risk'].values
+
+# Identify and exclude non-numeric columns (e.g., strings) for scaling
+non_numeric_columns = X.select_dtypes(include='object').columns
+X = X.drop(columns=non_numeric_columns)
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Specify k values
+k_values = [1, 5, 9]
+
+# Initialize lists to store AUC values for each K
+auc_values = []
+
+for k in k_values:
+    # Create and train the weighted KNN classifier
+    weights = 'distance'  # Use inverse of distances as weights
+    knn_classifier = KNeighborsClassifier(n_neighbors=k, weights=weights)
+    knn_classifier.fit(X_train, y_train)
+
+    # Predict the labels for the test set using weighted KNN
+    y_pred_weighted = knn_classifier.predict(X_test)
+
+    # Make predictions on the test data
+    y_pred_prob = knn_classifier.predict_proba(X_test)[:, 1]  # Probabilities of belonging to class 1
+
+    # Calculate accuracy for the weighted KNN predictions
+    accuracy_weighted = accuracy_score(y_test, y_pred_weighted)
+    accuracy_weighted_percentage = accuracy_weighted * 100
+    print(f"Accuracy (Weighted KNN) with k={k}: {accuracy_weighted_percentage:.2f}%")
+
+    # Calculate the confusion matrix
+    conf_matrix = confusion_matrix(y_test, y_pred_weighted)
+    print("Confusion Matrix:")
+    print(conf_matrix)
+# Calculate ROC curve
+    fpr, tpr, thresholds = roc_curve(y_test, y_pred_prob)
+    roc_auc = auc(fpr, tpr)
+    print("AUC for KNN with k =", k, ":", roc_auc)
+
+    # Determine the optimal Cutoff Threshold
+    optimal_idx = np.argmax(tpr - fpr)
+    optimal_threshold = thresholds[optimal_idx]
+
+    # Append AUC to the list
+    auc_values.append(roc_auc)
+    # Print actual probabilities and binary predictions for the first 5 instances
+    for i in range(5):
+        print(f"Instance {i + 1}: Probability={y_pred_prob[i]:.2f}, Prediction={y_pred_weighted[i]}")
+
+    # Plotting the confusion matrix
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=['0', '1'],
+                yticklabels=['0', '1'])
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title('Confusion Matrix')
+    plt.show()
+
+
+
+    # Plot ROC curve
+    plt.figure(figsize=(8, 6))
+    plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'AUC = {roc_auc:.2f}')
+    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    plt.scatter(fpr[optimal_idx], tpr[optimal_idx], marker='o', color='red',
+                label=f'Optimal Threshold = {optimal_threshold:.2f}')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title(f'Receiver Operating Characteristic (ROC) Curve for Weighted KNN with k={k}')
+    plt.legend(loc='lower right')
+    plt.show()
+
+# Plot AUC values for different K values
+plt.figure()
+plt.plot(k_values, auc_values, marker='o')
+plt.xlabel('k Value')
+plt.ylabel('AUC')
+plt.title('AUC for Different K Values (Multiclass Classification)')
+plt.grid()
+plt.show()
